@@ -5,8 +5,8 @@ in D&D 5e. If you choose, it will factor Empowered Spell,
 Elemental Adept, and/or Flames of Phlegethos into the damage
 calculations. The program does this by simulating random dice rolls
 a specified number of times and taking the average result of each
-simulation. If Empowered spell isn't used for the spell, then the
-average result is instead calculated using probability.
+simulation. If Empowered Spell isn't used, then the average result
+is instead calculated using probability.
 
 It is worth noting that this program operates under my interpretation
 of how these features interact with each other, which is as follows:
