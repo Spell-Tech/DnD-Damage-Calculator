@@ -1,0 +1,244 @@
+""" This program is meant to calculate the average damage of spells
+in D&D 5e. If you choose, it will factor Empowered Spell,
+Elemental Adept, and/or Flames of Phlegethos into the damage
+calculations. The program does this by simulating random dice rolls
+a specified number of times and taking the average result of each
+simulation. The exception to this is if neither Empowered Spell nor
+Flames of Phlegethos are used, in which case the average result is
+calculated using simple probability.
+
+It is worth noting that this program operates under my interpretation
+of how these features interact with each other, which is as follows:
+If you reroll a damage die with either Empowered Spell or Flames of
+Phlegethos, you have to keep that new roll. You can't, for example,
+reroll with Empowered to get a 1 and then reroll again with Flames. If
+you roll a 1 on any damage die, you can treat it as a 2 with Elemental
+Adept, regardless of whether or not it has been rerolled already.
+"""
+
+def main():
+    import sys
+    from random import random
+
+    def error_message(string):
+        # Give the user an error message
+        print("Invalid input: %s" % string)
+
+    def parameter_input(string):
+        # Return user input for a parameter of the,
+        #   and only accept natural numbers greater than 0
+        while True:
+            try:
+                parameter = int(input(string).replace(",", ""))
+            except:
+                error_message("Please input an integer greater than 0")
+                continue
+            else:
+                if parameter > 0:
+                    return parameter
+                else:
+                    error_message("Please input an integer greater than 0")
+
+    def feature_input(string):
+        # Take user input for a feature used in the simulation,
+        #   and convert inputs like "y" or "No" to True and False
+        while True:
+            feat = input(string)
+            # The double parenthesis make the argument a tuple
+            #   They are necessary, so don't remove them
+            if feat.startswith(("y", "Y", "1")):
+                return True
+            elif feat.startswith(("n", "N", "1")):
+                return False
+            else:
+                error_message("Please input either y or n")
+
+    print()
+    print("How much damage does the spell do? (Eg. 8d6, 4d10+5)")
+    
+    while True:
+        # Get user input for the spell's damage
+        spell_damage = input("--> ")
+        # Split the input into the number of dice, number of faces
+        #   on each die, and the modifier to add to the total
+        spell_damage = (
+            spell_damage.lower().replace(" ", "")
+            .replace("d", " ",1).replace("+", " ",1).split()
+            )
+        if len(spell_damage) < 2 or len(spell_damage) > 3:
+            error_message("Please use the correct format (Eg. 8d6, 4d10+5)")
+            continue
+        try:
+            dice_number = int(spell_damage[0])
+        except ValueError:
+            error_message("\"%s\" should be an integer greater than 0"
+                % spell_damage[0])
+            continue
+        try:
+            dice_type = int(spell_damage[1])
+        except ValueError:
+            error_message("\"%s\" should be an integer greater than 0"
+                % spell_damage[1])
+            continue
+        if len(spell_damage) == 3:
+            try:
+                damage_mod = int(spell_damage[2])
+            except ValueError:
+                error_message("\"%s\" should be an integer"
+                    % spell_damage[2])
+                continue
+        else:
+            damage_mod = 0
+        break
+    # Get the rest of the inputs for the simulation
+    print("Empowered Spell? y/n ")
+    empowered_spell = feature_input("--> ")
+    if empowered_spell:
+        print("What is your charisma modifier? (Minimum of 1)")
+        charisma_mod = parameter_input("--> ")
+    print("Flames of Phlegethos? y/n")
+    flames_of_phlegethos = feature_input("--> ")
+    print("Elemental Adept? y/n")
+    elemental_adept = feature_input("--> ")
+    if empowered_spell:
+        print("How many simulations would you like to run?")
+        print("More simulations will give a more accurate result, "
+                "but will also take longer.")
+        sample_size = parameter_input("--> ")
+
+    # Calculate the average result of a die roll 
+    #   given that it won't be rerolled
+    if elemental_adept:
+        average_roll = dice_type / 2 + 1 / dice_type + 0.5
+    else:
+        average_roll = dice_type / 2 + 0.5
+    # Dice at or below this threshold
+    #   can be rerolled with empowered spell
+    reroll_threshold = dice_type // 2
+    simulation_results = []
+    rolled_values = []
+    for a in range(dice_number):
+        rolled_values.append(None)
+    print()
+
+    if empowered_spell and not flames_of_phlegethos:
+        for a in range(sample_size):
+            if a % 10000 == 0:
+                # Display a progress counter that
+                #   updates every 10,000 loops
+                progress = "\r%d%% complete" % (a * 100 // sample_size)
+                sys.stdout.write(progress)
+            threshold_count = 0
+            # Roll all of the dice
+            for b in range(dice_number):
+                rolled_values[b] = int(random() * dice_type) + 1
+                # Count how many dice are at or below the threshold
+                if rolled_values[b] <= reroll_threshold:
+                    threshold_count += 1
+            end_values = rolled_values.copy()
+            # Create a list for the end results 
+            #   after dice have been rerolled
+            if threshold_count <= charisma_mod:
+                # Reroll all dice that need a reroll
+                for b in range(dice_number):
+                    if threshold_count == 0:
+                        break
+                    if rolled_values[b] <= reroll_threshold:
+                        end_values[b] = int(random() * dice_type) + 1
+                        threshold_count -= 1
+            else:
+                empowered_uses = charisma_mod
+                # Reroll until empowered_uses == 0
+                #   and prioritize lower numbers
+                for b in range(reroll_threshold):
+                    if empowered_uses == 0:
+                        break
+                    for c in range(dice_number):
+                        if rolled_values[c] == b:
+                            end_values[c] = int(random() * dice_type) + 1
+                            empowered_uses -= 1
+                        # Stop rerolling if out of empowered spell uses
+                        if empowered_uses == 0:
+                            break
+            if elemental_adept:
+            # Convert 1s to 2s
+                for b in range(dice_number):
+                    if end_values[b] == 1:
+                        end_values[b] = 2
+            simulation_results.append(sum(end_values))
+
+    elif empowered_spell and flames_of_phlegethos:
+        for a in range(sample_size):
+            if a % 10000 == 0:
+                # Display a progress counter that
+                #    updates every 10,000 loops
+                progress = "\r%d%% complete" % (a * 100 // sample_size)
+                sys.stdout.write(progress)
+            threshold_count = 0
+            # Roll all of the dice
+            for b in range(dice_number):
+                rolled_values[b] = int(random() * dice_type) + 1
+                if rolled_values[b] == 1:
+                    continue
+                # count how many dice are below the threshold
+                if rolled_values[b] <= reroll_threshold:
+                    threshold_count += 1
+            end_values = rolled_values.copy()
+            if threshold_count <= charisma_mod:
+                # Reroll all dice that need a reroll
+                for b in range(dice_number):
+                    if rolled_values[b] <= reroll_threshold:
+                        end_values[b] = average_roll
+            else:
+                empowered_uses = charisma_mod
+                # Reroll until empowered_uses == 0
+                #   and prioritize lower numbers
+                for b in range(reroll_threshold):
+                    if empowered_uses == 0:
+                        break
+                    for c in range(dice_number):
+                        if rolled_values[c] == b:
+                            end_values[c] = average_roll
+                            empowered_uses -= 1
+                        # Stop rerolling if out of empowered spell uses
+                        if empowered_uses == 0:
+                            break
+            if elemental_adept:
+                # Convert 1s to 2s
+                for b in range(dice_number):
+                    if end_values[b] == 1:
+                        end_values[b] = 2
+            simulation_results.append(sum(end_values))
+
+    elif not empowered_spell and flames_of_phlegethos:
+        # Don't simulate anything and instead
+        #   calculate the answer with probability
+        average_result = (
+            (dice_type * (dice_type + 1) // 2 - 1 + average_roll)
+            * dice_number / dice_type
+            )
+        print("100% Complete")
+        print("Average result ---> %f" % average_result)
+        return None
+
+    elif not empowered_spell and not flames_of_phlegethos:
+        # Don't simulate anything and instead
+        #   calculate the answer with probability
+        print("100% Complete")
+        print("Average result ---> %f" % (
+            average_roll * dice_number + damage_mod))
+        return None
+
+    # use different text depending on whether the word
+    #   "simulation" should be plural
+    if sample_size == 1:
+        sys.stdout.write("\r100% Complete")
+        print()
+        print("Result of 1 simulation ---> %f"
+            % sum(simulation_results) + damage_mod)
+    else:
+        sys.stdout.write("\r100% Complete")
+        print()
+        print("Average result of %d simulations ---> %f" % (
+            sample_size, sum(simulation_results) / sample_size + damage_mod))
+main()
