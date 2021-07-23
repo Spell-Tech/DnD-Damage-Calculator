@@ -213,9 +213,9 @@ def main():
         # Don't simulate anything and instead
         #   calculate the answer with probability
         average_result = (
-            (dice_type * (dice_type + 1) // 2 - 1 + average_roll)
-            * dice_number / dice_type
-            )
+            ((dice_type * (dice_type + 1) // 2 - 1 + average_roll)
+            * dice_number / dice_type) + damage_mod
+        )
         print("100% Complete")
         print("Average result ---> %f" % average_result)
         return None
